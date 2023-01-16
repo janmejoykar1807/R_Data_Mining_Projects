@@ -1,5 +1,5 @@
 ---
-title: "DSCI5340_Homework3_Group1"
+title: "Project3"
 output:
   pdf_document:
     toc: yes
