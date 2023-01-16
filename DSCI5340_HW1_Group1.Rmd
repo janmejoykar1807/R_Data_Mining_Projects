@@ -1,0 +1,94 @@
+---
+title: "DSCI5340_HW1_Group1"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+  html_notebook:
+    theme: spacelab
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+  output: null
+  html_document:
+    df_print: paged
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Calling packages required for the analysis
+
+Packages used for the gafa_stock are below:
+dplyr, fpp3, timeSeries, forcats, tidyverse, GGally, plotly
+```{r cars}
+pacman::p_load(fpp3, dplyr, tsibbledata, tidyverse, xts, forcats, plotly, GGally)
+theme_set(theme_classic())
+view(gafa_stock)
+```
+
+## Re-Indexing the dataset of Gafa_stock
+Qno. 2 Do these data require any reindexing? Why or why not? Explain.
+
+Ans.- Yes, the data needs reindexing because there is a need to subset the data to get the required data frame, which helps us gather the data and use it for further analysis. In this assignment,  there is a requirement for the 2018 amazon stocks and Amazon closing stock price, and other variables are not required. So by reindexing, we could work on the specific data rather than the whole data.
+
+```{r pressure, echo=FALSE}
+Amazon_stock <- gafa_stock %>%
+  filter(Symbol == "AMZN") %>%
+  mutate(day = row_number()) %>%
+  update_tsibble(index = day, regular = TRUE)
+
+Amazon_2018 <- Amazon_stock %>% filter(year(Date) == 2018)
+```
+
+## Qno.3 The daily changes in Amazon’s closing stock prices of 2018.
+
+```{r}
+Amazon_2018 %>% autoplot(Close) +
+  labs(y = "Price ($US)", x= "Days",
+       title = "Amazon daily closing stock prices in 2018")
+```
+
+## Qno. 4 Plot the daily changes—the difference between a closing price and the previous session’s closing price—in the Amazon stock prices.
+
+```{r}
+# Generate fitted values and residuals using augment()
+aug <- Amazon_2018 %>% model(NAIVE(Close)) %>% augment()
+aug
+```
+
+```{r}
+# Residuals
+aug %>% autoplot(.resid) + xlab("Day") + ylab("Measures") +
+  ggtitle("Residuals from naive method")
+```
+
+```{r}
+# Histogram
+aug %>%
+  ggplot(aes(x = .resid)) +
+  geom_histogram() +
+  ggtitle("Histogram of residuals")
+# ACF Plot
+aug %>% ACF(.resid) %>% autoplot() + labs(title = "ACF of residuals", x= "Lag")
+```
+
+```{r}
+# Generate residual diagnostic plots -  use gg_tsresiduals()
+Amazon_2018 %>% model(NAIVE(Close)) %>% gg_tsresiduals()
+```
+
+## Qno. 5 Do the above changes in the stock prices look like white noise? Explain.
+
+Ans. Time series is called White noise when there is no autocorrelation, the mean is zero and the variance is constant. We can see that the graph till lag 7 satisfies all the conditions, But in lag 8 we can see that vertical line going outside the blue dotted line. In 20 vertical lines, there is only one line that crossed the blue dotted line(signifies the 95% confidence bound). So we can say that it is still significant because 1 out of 20 lines is a 5% error in estimations. Hence the changes in stock prices are white noise.
+
+```{r}
+# Ljung Box Test for White Noise
+aug %>% features(.innov, ljung_box, lag=10, dof=5)
+```
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
