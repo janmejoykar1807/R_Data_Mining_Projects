@@ -1,0 +1,211 @@
+---
+title: "R Notebook"
+output:
+  pdf_document: default
+  html_notebook:
+    df_print: paged
+  html_document:
+    df_print: paged
+editor_options:
+  chunk_output_type: inline
+---
+#Qno1. Produce a time plot of the data and describe the patterns. Identify any unusual or unexpected fluctuations in the time series.
+
+Ans:- After plotting the graph, we see an unusual fluctuation in the time series. There is a non-linear increasing regression line in the middle of the year 2002. Whereas in the early year of 2002, 2004 Jan and 2005 Jan we see a linear upward and downward regression line. Every year of January we observed an increasing regression line but in Jan 2003, we see a downward moving regression line. In the year 2002, in the Jan month we see an upward move of regression line but in the Jan month for the year 2003, 2004 we see an unexpected downward regression line. 
+
+```{r}
+#Qno.1
+pacman::p_load(fpp3,fma, xts, dplyr, tsibbledata, timeSeries, tidyverse, 
+               tseries, plotly, PerformanceAnalytics, GGally, 
+               ggplot2, ggfortify)
+View(insurance)
+autoplot(insurance, colour = 'blue', linetype = 'dashed')+
+  labs(x="Month",y="Quotes",title = "Time Plot of Insurance")
+```
+#Qno2. Fit a regression model with Quotes as the dependent variable and a linear trend and seasonal dummies as explanatory variables.
+
+```{r}
+#Qno. 2
+fit_cons <- insurance %>%
+  model(lm = TSLM(Quotes ~ Month))
+report(fit_cons)
+
+fit_insu <- insurance %>% 
+  model(TSLM(Quotes ~ trend() + season()))
+report(fit_insu)
+
+fit_consMR <- insurance %>%
+  model(lm = TSLM(Quotes ~ Month + TVadverts))
+report(fit_consMR)
+
+```
+#Qno3. Create a plot showing two lines – a fitted line from the above regression and a line with actual quotes. What do you observe in this plot?
+
+Ans:- From the below plot we can explain that the fitted values are closer to actual data.This explains that our predicted line fits the data reasonably well.
+
+```{r}
+#Qno. 3
+augment(fit_insu) %>%
+  ggplot(aes(x = Month)) +
+  geom_line(aes(y = Quotes, color = "Data"), lwd = 0.75) +
+  geom_line(aes(y = .fitted, color = "Fitted"), lwd = 0.75) +
+  labs(y = NULL,
+       title = "Fitted v Actual") + 
+  guides(color = guide_legend(title = NULL))
+```
+#Qno. 4 Create a scatter plot showing fitted v actual. Do you observe any patterns.
+
+Ans:- From the Scatter plot, we cannot find any particular pattern, but from the regression line we can interpret that fitted values has a positive relationship with the actual data. And our fitted data or predicted values are very close to actual value, which means our linear model has a lower error chance and higher probability accuracy to get the correct values when tried to forecast using our model. Thus, The scatter plot is a strong positive linear regression line with no outliers.
+
+```{r}
+#Qno. 4
+augment(fit_insu) %>%
+  ggplot(aes(x = .fitted, y = Quotes)) +
+  geom_point(color = "orange") + 
+  labs(y="Fitted (predicted values)",
+       x="Data (actual values)",
+       title ="Scatterplot: Fitted v Actual")+
+  geom_abline(intercept = 0, slope = 1, color = 'navy')
+  
+
+fit_consMR %>% gg_tsresiduals()
+fit_insu %>% gg_tsresiduals()
+```
+#Qno5. Plot the residuals against time and against the fitted values. Do these plots reveal any autocorrelation in the model?
+
+Ans:- From the plot below, we can see TVadverts show zero correlation with residuals and fitted values when plotted against time, whereas Quotes shows positive relationship with residuals vs fitted against time.  
+
+
+```{r}
+#Qno. 5
+
+autoplot(residuals(fit_insu))
+
+augment(fit_insu) %>% ggplot(aes(x = Month, y = .resid,
+           col = .fitted)) +
+  geom_line()
+
+insurance %>%
+  left_join(residuals(fit_insu), by = "Month") %>%
+  pivot_longer(Quotes:TVadverts,
+               names_to = "regressor", values_to = "x") %>%
+  ggplot(aes(x = x, y = .resid)) +
+  geom_point(color = "brown") +
+  facet_wrap(. ~ regressor, scales = "free_x") + 
+  geom_smooth(method = 'lm', se = TRUE)+
+  labs(y = "Residuals", x = "Month",
+       title = "Residual v Fitted plot")
+```
+#Qno6. Generate box plots of the residuals for each month. Do these plots reveal any patterns in the above model?
+
+Ans:- From the plot we can describe that in the following months: February and April show maximum variance than the other months, this can refer to as it is not able to capture data from the trend of the time series. 
+
+```{r}
+#Qno. 6
+
+augment(fit_insu) %>%
+  mutate(month = month(Month, label = TRUE)) %>%
+  ggplot(aes(x = month, y = .innov)) +
+  geom_boxplot(fill = "skyblue1")
+
+```
+#Qno. 7 Run a Ljung-Box test and interpret the results.
+
+Ans:- The result of the Ljung- box provides a value of 2.033665e-10, which is less than the level of significance i.e 0.05. This means that the residual for the time series model is dependent and thus we reject the null hypothesis of the test.
+
+```{r}
+#Qno. 7
+augment(fit_insu) %>%
+  features(.innov, ljung_box, lag = 10, dof = 5)
+```
+
+#Qno8. Interpret the coefficients – the one associated with the trend variable and at least one associated with a seasonal variable.
+
+
+Ans:- 
+
+Coefficients:
+               Estimate Std. Error t value Pr(>|t|)    
+(Intercept)    14.38763    1.43309  10.040  1.3e-10 ***
+trend()         0.01102    0.03521   0.313    0.757    
+season()year2   1.47572    1.79272   0.823    0.418    
+season()year3  -0.54569    1.79376  -0.304    0.763    
+season()year4  -1.84559    1.79548  -1.028    0.313    
+season()year5  -0.04938    1.93726  -0.025    0.980    
+season()year6  -0.83649    1.93630  -0.432    0.669    
+season()year7  -1.49306    1.93598  -0.771    0.447    
+season()year8  -2.05308    1.93630  -1.060    0.298    
+season()year9  -1.96111    1.93726  -1.012    0.320    
+season()year10 -2.51062    1.93886  -1.295    0.206    
+season()year11 -1.69338    1.94110  -0.872    0.391    
+season()year12 -1.63884    1.94397  -0.843    0.407    
+
+Trend:
+
+Coefficient describes the relationship between a dependent variable and the independent variable in mathematical terms. We can see above in coefficient trend() the estimate is 0.01102, the standard error is 0.03521, the t-value is 0.313 and the P-value is 0.757. The standard error should be small to estimate, that’s the same in this case. Here the standard error is 0.03521 which is less than the value of the coefficient. The t-value of 0.313  is greater to declare statistical significance. The P-value of the coefficient indicates if the relationship is statically significant. Interpreting the P-value is done to the significance level. In this case, is 0.05. The P-value is 0.757 which is greater than the level of significance.  This means we don't have enough statistical evidence to reject the null hypothesis. Trend Variable is positive but the value is too low to be statistically significant.
+
+Seasonal:
+
+Coefficient describes the relationship between a dependent variable and the independent variable in mathematical terms. We can see above in coefficient of seasonal variable "season()year4"  the estimate is -1.84559, the standard error is 1.79548, the t-value is -1.028 and P-value is 0.313. We see that as I year progress the size of the coefficient decrease, Because its difference between 1st year and 4th year, this is shown by negative estimate value. The standard error should be small and it calculates the precision of the model's prediction. Here the standard error is 1.79548 which is, we can use S to obtain a rough estimate of the 95% prediction interval. About 95% of the data points are within a range that extends from +/- 2 * standard error of the regression from the fitted line. T-value of -1.028 is too small to declare statistical significance. The P-value of the coefficient indicates that the relationship is statically significant. Interpreting the P-value is done to the significance level. In this case, is 0.05. The p-value is 0.313 which is greater than the level of significance. This means we don't have enough statistical evidence to reject the null hypothesis.
+
+
+
+#Qno9. Use your regression model to forecast the monthly Quotes for 36 months ahead. Produce prediction intervals for those forecasts.
+
+```{r}
+#Qno. 9
+quotes_input <- insurance %>%
+  filter_index("2002 M1" ~ "2005 M4") %>%
+  select(c(Month, Quotes))
+#Mean Model
+quotesfit1 <- quotes_input %>% model(MEAN(Quotes))
+fc1 <- quotesfit1 %>% forecast(h = "36 months")
+fc1 %>% autoplot(quotes_input, level = NULL,
+                 color = "red", cex =0.8) + labs(title = "Average Method")
+#Naive Model
+quotesfit2 <- quotes_input %>% model(NAIVE(Quotes))
+fc2 <- quotesfit2 %>% forecast(h = "36 months")
+fc2 %>% autoplot(quotes_input, level = NULL,
+                 color = "red", cex =0.8) + labs(title = "Naive Method")
+#Seasonal Naive Model
+quotesfit3 <- quotes_input %>% model(SNAIVE(Quotes))
+fc3 <- quotesfit3 %>% forecast(h = "36 months")
+fc3 %>% autoplot(quotes_input, level = NULL,
+                 color = "red", cex =0.8) + labs(title = "Seasonal Naive Method")
+#Drift Model
+quotes_fit4 <- quotes_input %>% model(RW(Quotes ~ drift()))
+fc4 <- quotes_fit4 %>% forecast(h = "36 months")
+fc4 %>% autoplot(quotes_input, level = NULL,
+                 color = "red", cex =0.8) + labs(title = "Drift Method")
+#Linear Regreesion Model
+quotes_fit5 <- quotes_input %>% model(TSLM(Quotes ~ trend() + season()))
+fc5 <- quotes_fit5 %>% forecast(h="36 months")
+fc5 %>% autoplot(quotes_input, level = NULL,
+                 color = "red", cex =0.8) + labs(title = "Linear Regression Method")
+
+# Fit  models - together
+quotes_fit <- quotes_input %>%
+  model(
+    Mean = MEAN(Quotes),
+    `Naïve` = NAIVE(Quotes),
+    `Seasonal naïve` = SNAIVE(Quotes),
+    Drift = RW(Quotes ~ drift()),
+    TS_LM = TSLM(Quotes ~ trend() + season())
+  )
+quotes_fc <- quotes_fit %>%
+  forecast(h = "36 months")
+
+# Plot forecasts against actual values
+quotes_fc %>%
+  autoplot(quotes_input, level = NULL) +
+  autolayer(
+    filter_index(insurance, "2002 M1" ~ .),
+    color = "black", linetype = 3
+  ) +  labs(title = "Insurance Quotes",
+       y = "Number of Quotes") +
+  guides(color=guide_legend(title="Forecasts"))
+
+```
+#Qno10. Do you have any recommendations for improving the model?
+
+Ans:- We could consider using a dynamic-regression model which works better when we have autocorrelation remaining in the residuals. We don’t need to hung up on whether a coefficient “should” vary by group. Just allow it to vary in the model, and then, if the estimated scale of variation is small, maybe we can ignore it if that would be more convenient.  It is important that the continuous variables in the dataset need to be symmetric about the mean.
