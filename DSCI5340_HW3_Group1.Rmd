@@ -1,0 +1,306 @@
+---
+title: "DSCI5340_Homework3_Group1"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    theme: readable
+    toc: yes
+  html_notebook:
+    theme: readable
+    toc: yes
+editor_options:
+  chunk_output_type: inline
+---
+
+
+```{r}
+pacman::p_load(e1071, ggplot2, caret, rmarkdown, corrplot)
+search()
+theme_set(theme_classic())
+options(digits = 3)
+```
+
+```{r}
+juice <- read.csv('juice.csv')
+View(juice)
+```
+
+```{r}
+summary(juice)
+```
+
+```{r}
+ggplot(data=juice) +
+  geom_point(aes(x= SalePriceMM, y= SalePriceCH, color = Purchase))+
+  theme_classic()
+```
+
+
+```{r}
+ggplot(data=juice) +
+  geom_point(aes(x= PriceMM, y= PriceCH, color = Purchase))+
+  theme_classic()
+```
+
+
+
+```{r}
+juice$Purchase <- as.factor(juice$Purchase)
+```
+
+## Qno. 1 Create a training data set containing a random sample of 90% of the observations in the “juice.csv” data set using the createDataPartition() function. Create a test data set containing the remaining observations.
+
+Ans
+
+```{r}
+set.seed(42)
+trainindex <- createDataPartition(juice$Purchase, p=0.9, list= FALSE)
+juice_train <- juice[trainindex, ]
+juice_test <- juice[-trainindex, ]
+```
+
+
+
+## Qno. 2 Fit an SVM model with a linear kernel to the training data using cost=0.01. Use Purchase as the response and the other variables as predictors in this model. Use the summary() function to produce summary statistics, and describe the results obtained.
+
+Ans In the summary, we can interpret that model is doing a classification using the linear kernel. And we have assigned cost constraint of 0.01. It taken 483 data points from the our 90% training data, and split that into our 2 classes which are Citrus Hill and Minute Maid. No. of support vector assigned to CH is 241 and 242 to MM. 
+
+```{r}
+Model1 <- svm(Purchase~., data=juice_train, kernel = "linear", cost = 0.01)
+summary(Model1)
+
+```
+
+##Qno.3 What are the training and test error rates?
+
+Ans The training error rate is 0.174, whereas the test error rate is 0.14.
+
+```{r}
+ ## Performance Evaluation ##
+pred1 <- predict(Model1, juice_train)
+
+    # confusion matrix
+conf.matrix <- table(Predicted = pred1, Actual = juice_train$Purchase)
+conf.matrix
+  
+    # accuracy of Training
+x<- (sum(diag(conf.matrix))) / sum(conf.matrix)
+Error_rate1 <- 1- x
+print(Error_rate1)
+
+
+ ## Performance Evaluation ##
+pred2 <- predict(Model1, juice_test)
+
+    # confusion matrix
+conf.matrix1 <- table(Predicted = pred2, Actual = juice_test$Purchase)
+conf.matrix1
+  
+    # accuracy of Test
+y <- (sum(diag(conf.matrix1))) / sum(conf.matrix1)
+Error_rate2<- 1- y
+print(Error_rate2)
+```
+
+##Qno. 4 Use the tune() function to select an optimal cost. Consider values in the range 0.01 to 10. 
+
+Ans Here we have used seq() function to set cost values in the range from 0.01 to 10.
+
+```{r}
+#Tuning using Kernel Linear
+
+tunesvm2 <- tune(svm, Purchase~., data = juice_test,
+     ranges = list(cost = seq(0.01,10, by = 0.2)),kernel = 'linear')
+
+summary(tunesvm2)
+plot(tunesvm2)
+```
+
+
+##Qno.5 Compute and report the training and test error rates using this new value for cost
+
+Ans The new training error rate is 0.191 and the new test error rate is 0.13. 
+
+```{r}
+bestsvm1 <- tunesvm2$best.model
+summary(bestsvm1)
+
+#performance evaluation for Training set
+bestpred1 <- predict(bestsvm1, juice_train)
+
+# confusion matrix
+conf.matrix3 <- table(Predicted = bestpred1, Actual = juice_train$Purchase)
+conf.matrix3
+
+  # accuracy of Training
+a<- (sum(diag(conf.matrix3))) / sum(conf.matrix3)
+print(a)
+print(1-a)
+```
+
+
+```{r}
+bestsvm1 <- tunesvm2$best.model
+summary(bestsvm1)
+
+#performance evaluation for Testing set
+bestpred2 <- predict(bestsvm1, juice_test)
+
+# confusion matrix
+conf.matrix4 <- table(Predicted = bestpred2, Actual = juice_test$Purchase)
+conf.matrix4
+
+  # accuracy of Test
+b<-(sum(diag(conf.matrix4))) / sum(conf.matrix4)
+print(b)
+print(1-b)
+```
+
+
+##Qno 6. Repeat parts (2.) through (5.) using a support vector machine with a radial kernel. Use the default value for gamma, if needed.
+
+Ans 
+
+```{r}
+Model2 <- svm(Purchase~., data=juice_train, kernel = "radial", cost = 0.01,gamma = 2^(-2:2))
+summary(Model2)
+
+
+## Performance Evaluation ##
+pred3 <- predict(Model2, juice_train)
+
+    # confusion matrix
+conf.matrix5 <- table(Predicted = pred3, Actual = juice_train$Purchase)
+conf.matrix5
+  
+    # accuracy of Training
+(sum(diag(conf.matrix5))) / sum(conf.matrix5)
+
+
+
+ ## Performance Evaluation ##
+pred4 <- predict(Model2, juice_test)
+
+    # confusion matrix
+conf.matrix6 <- table(Predicted = pred4, Actual = juice_test$Purchase)
+conf.matrix6
+  
+    # accuracy of Test
+(sum(diag(conf.matrix6))) / sum(conf.matrix6)
+```
+
+
+```{r}
+tunesvm3 <- tune(svm, Purchase~., data = juice_test,
+     ranges = list(cost = seq(0.01,10, by = 0.2)),kernel = 'radial')
+
+summary(tunesvm3)
+plot(tunesvm3)
+
+```
+
+
+```{r}
+bestsvm2 <- tunesvm3$best.model
+summary(bestsvm2)
+
+#performance evaluation for Training set
+bestpred3 <- predict(bestsvm2, juice_train)
+
+# confusion matrix
+conf.matrix7 <- table(Predicted = bestpred3, Actual = juice_train$Purchase)
+conf.matrix7
+
+  # accuracy of Training
+(sum(diag(conf.matrix7))) / sum(conf.matrix7)
+
+
+
+#performance evaluation for Testing set
+bestpred4 <- predict(bestsvm2, juice_test)
+
+# confusion matrix
+conf.matrix8 <- table(Predicted = bestpred4, Actual = juice_test$Purchase)
+conf.matrix8
+
+  # accuracy of Test
+(sum(diag(conf.matrix8))) / sum(conf.matrix8)
+
+```
+
+
+##Qno. 7  Repeat parts (2.) through (5.) using a support vector machine with a polynomial kernel. Set degree=2. 
+
+Ans
+
+```{r}
+Model3 <- svm(Purchase~., data=juice_train, kernel = "polynomial", cost = 0.01,degree = 2)
+summary(Model3)
+
+## Performance Evaluation ##
+pred5 <- predict(Model3, juice_train)
+
+    # confusion matrix
+conf.matrix9 <- table(Predicted = pred5, Actual = juice_train$Purchase)
+conf.matrix9
+  
+    # accuracy of Training
+(sum(diag(conf.matrix9))) / sum(conf.matrix9)
+
+
+
+ ## Performance Evaluation ##
+pred6 <- predict(Model3, juice_test)
+
+    # confusion matrix
+conf.matrix10 <- table(Predicted = pred6, Actual = juice_test$Purchase)
+conf.matrix10
+  
+    # accuracy of Test
+(sum(diag(conf.matrix10))) / sum(conf.matrix10)
+
+```
+
+
+```{r}
+tunesvm4 <- tune(svm, Purchase~., data = juice_test,
+     ranges = list(cost = seq(0.01,10, by = 0.2)),kernel = 'polynomial', degree = 2)
+
+summary(tunesvm4)
+plot(tunesvm4)
+
+```
+
+
+```{r}
+bestsvm3 <- tunesvm4$best.model
+summary(bestsvm3)
+
+#performance evaluation for Training set
+bestpred5 <- predict(bestsvm3, juice_train)
+
+# confusion matrix
+conf.matrix11 <- table(Predicted = bestpred5, Actual = juice_train$Purchase)
+conf.matrix11
+
+  # accuracy of Training
+(sum(diag(conf.matrix11))) / sum(conf.matrix11)
+
+
+
+#performance evaluation for Testing set
+bestpred6 <- predict(bestsvm3, juice_test)
+
+# confusion matrix
+conf.matrix12 <- table(Predicted = bestpred6, Actual = juice_test$Purchase)
+conf.matrix12
+
+  # accuracy of Test
+(sum(diag(conf.matrix12))) / sum(conf.matrix12)
+
+```
+
+##Qno. 8 Overall, which of the above approaches give the best results using this data? Explain your answer.
+
+Ans From the above models, the model that performed best was radial model with test accuracy of 90%. From the above we can see it is a non linear data which means we cannot classify the categories by a straight line. So RBF kernel actually creates non-linear combinations of our features to uplift our samples onto a higher-dimensional feature space where we can use a linear decision boundary to separate our classes.
