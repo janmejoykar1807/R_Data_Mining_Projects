@@ -1,0 +1,125 @@
+---
+title: "DSCI5340_HW4_Group1"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+pacman::p_load(tidyverse, tidytext, lubridate, stringr,
+               gutenbergr, reshape2, wordcloud, textdata)
+
+knitr::opts_chunk$set(echo = TRUE)
+
+theme_set(theme_classic())
+```
+
+
+
+```{r cars}
+load(file = 'song_lyrics.rda')
+```
+
+
+
+```{r}
+view(song_lyrics)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r}
+str(song_lyrics)
+```
+
+
+
+```{r}
+full_text <- song_lyrics
+
+tidy_book <- full_text %>%
+  mutate(line = row_number()) %>%
+  unnest_tokens(word, lyrics)
+
+head(tidy_book)
+```
+
+
+
+```{r}
+song_lyrics$Total_words <- sapply(song_lyrics$lyrics, function(x) length(unlist(strsplit(as.character(x), "\\W+"))))
+```
+
+
+```{r}
+head(song_lyrics,10)
+```
+
+```{r}
+data("stop_words")
+filter(stop_words, lexicon == "snowball")
+
+tidy_book %>%
+  anti_join(stop_words) %>% 
+  count(word, sort = TRUE)
+```
+
+
+```{r}
+bing_pos <- get_sentiments("bing")
+
+tidy_book %>%
+  inner_join(bing_pos) %>%
+  count(sentiment, sort = TRUE)
+```
+
+```{r}
+summary(tidy_book)
+```
+
+
+```{r}
+bingnegative <- get_sentiments("bing") %>% 
+  filter(sentiment == "negative")
+
+wordcounts <- tidy_book %>%
+  group_by(rank, song) %>%
+  summarize(words = n())
+
+tidy_book %>%
+  semi_join(bingnegative) %>%
+  group_by(rank, song) %>%
+  summarize(negativewords = n()) %>%
+  left_join(wordcounts, by = c("rank", "song")) %>%
+  mutate(ratio = negativewords/words) %>%
+  filter(rank != 0) %>%
+  slice_max(ratio, n = 1) %>% 
+  ungroup()
+```
+
+
+```{r}
+
+bingpositive <- get_sentiments("bing") %>% 
+  filter(sentiment == "positive")
+
+wordcounts <- tidy_book %>%
+  group_by(rank,song) %>%
+  summarize(words = n())
+
+tidy_book %>%
+  semi_join(bingpositive) %>%
+  group_by(rank, song) %>%
+  summarize(positivewords = n()) %>%
+  left_join(wordcounts, by = c("rank", "song")) %>%
+  mutate(ratio = positivewords/words) %>%
+  filter(rank != 0) %>%
+  slice_max(ratio, n = 1) %>% 
+  ungroup()
+```
+
+
+
+

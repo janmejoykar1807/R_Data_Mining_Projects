@@ -1,0 +1,148 @@
+---
+title: "DSCI5340_HW4_Group1: Text Analysis"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r}
+pacman::p_load(tidyverse, tidytext, lubridate, stringr,
+               gutenbergr, reshape2, wordcloud, textdata)
+
+knitr::opts_chunk$set(echo = TRUE)
+
+theme_set(theme_classic())
+
+```
+
+
+
+```{r}
+load(file = 'song_lyrics.rda')
+```
+
+
+
+```{r}
+tidy_books <- song_lyrics %>%
+  unnest_tokens(word, lyrics)
+
+```
+
+```{r}
+data("stop_words")
+filter(stop_words, lexicon == "snowball")
+
+tidy_books <- tidy_books %>%
+  anti_join(stop_words)
+```
+# Qno. 1 Tokenize the lyrics variable, count the number of words in each song, and merge the total number of words in each song with the data (this will add a new column to the data). Print a few rows of the updated data set showing the total number of words in each song. 
+
+## Ans:- 
+
+```{r}
+song_lyrics$Total_words <- sapply(song_lyrics$lyrics, 
+                                  function(x) 
+                                    length(unlist(strsplit(as.character(x), "\\W+"))))
+
+head(song_lyrics,10)
+```
+
+# Qno. 2 Create sentiment scores using “bing” lexicon and count the number of sentiment words (number of positive and number of negative sentiment words, separately) in each song. 
+
+
+```{r}
+sentiment <- tidy_books %>%
+  inner_join(get_sentiments("bing"))
+head(sentiment)
+```
+
+
+```{r}
+sentiment %>%
+count(sentiment, sort = TRUE)
+
+sentiment %>%
+  count(song, sentiment, sort = TRUE)
+```
+
+
+```{r}
+
+sentiment_percentage <- sentiment %>%
+  group_by(rank, song, artist, year)%>%
+  mutate(total_sentiment_words = n())%>%
+  group_by(rank, song, artist, year, sentiment, total_sentiment_words)%>%
+  summarise(count=n())%>%
+  mutate(percentage = round((count/total_sentiment_words)*100,2))
+
+head(sentiment,20)
+```
+
+# Qno. 2(i) songs with the highest percentage of positive words;
+
+```{r}
+pos_per <- sentiment_percentage%>%
+  filter(sentiment=="positive",percentage>50)%>%
+  arrange(desc(percentage))
+
+head(pos_per)
+```
+
+
+# Qno. 2(ii) songs with the highest percentage of positive words;
+
+```{r}
+neg_per <- sentiment_percentage%>%
+  filter(sentiment=="negative", percentage>50)%>%
+  arrange(desc(percentage))
+
+head(neg_per)
+```
+
+# Qno. 3 Do songs with a higher percent of negative words rank higher on the Billboard chart (rank 1 is the highest and rank 100 is the lowest)? Answer this question by grouping songs in the following groups: 1-10, 11-20, …, and 91-100. Use boxplots for each of these groups, with ranking groups on the x axis and percent of negative words on the y axis.
+
+## Ans:- The below plot explains that songs with rank 1-10 dont higher percentage of negative words. They have an average of 50% of negative words.
+
+```{r}
+sentiment_percentage$rank_group <- cut(sentiment_percentage$rank,
+                                      breaks = c(0,10,20,30,40,50,60,70,80,90,100),
+                                      labels = c("1-10", "11-20", "21-30", "31-40", "41-50",
+                                                "51-60","61-70", "71-80", "81-90","91-100"))
+
+negative_plot<- sentiment_percentage%>%filter(sentiment=="negative")
+Rank_negative_plot <- ggplot(negative_plot,
+    aes(x = rank_group, y = percentage, fill = rank_group))+
+    geom_boxplot()+
+    labs(title = "Percentage of negative words grouped over Decades",
+              x = "Grouping by Rank",
+              y = "Percentage of negative words")+
+          scale_fill_brewer(palette="Paired")+
+    theme(legend.position = "none")
+
+Rank_negative_plot
+```
+
+# Qno. 4 Have the percent of positive words in a song increased over the decade? Answer this question by grouping songs over decades: 1960-1969, 1970-1979, …, 2010-2019. Use boxplots for each of these groups, with decades on the x axis and the percent of positive words on the y-axis.
+
+## Ans:- The below plot explains, that every decade there is an average percent decrease of 4% in positive words. 
+
+```{r}
+sentiment_percentage$year_group <- cut(sentiment_percentage$year,
+                                    breaks = c(-Inf,1969,1979,1989,1999,2009,2019),
+                                    labels = c("1960-1969", "1970-1979","1980-1989",
+                                    "1990-1999","2000-2009", "2010-2019"))
+
+positive_plot <- sentiment_percentage%>%filter(sentiment=="positive")
+Per_positive_words <- ggplot(positive_plot,
+          aes(x = year_group, y = percentage, fill = year_group))+
+          geom_boxplot()+
+          labs(title = "Percentage of positive words grouped over Decades",
+                x = "Grouping by Year",
+                y = "Percentage of positive words")+
+          scale_fill_brewer(palette="BuPu")+
+          theme(legend.position = "none")
+
+Per_positive_words
+```
+
