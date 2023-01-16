@@ -1,5 +1,5 @@
 ---
-title: "DSCI5340_HW4_Group1: Text Analysis"
+title: "Text Analysis"
 output:
   pdf_document: default
   html_document: default
